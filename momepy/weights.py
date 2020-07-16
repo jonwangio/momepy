@@ -92,7 +92,7 @@ class _Neighbors(dict, DistanceBand):
 
 def sw_high(k, gdf=None, weights=None, ids=None, contiguity="queen", silent=True):
     """
-    Generate spatial weights based on Queen or Rook contiguity of order k.
+    Generate spatial weights based on Queen or Rook contiguity of order k and below.
 
     Adjacent are all features within <= k steps. Pass either ``gdf`` or ``weights``.
     If both are passed, ``weights`` is used. If ``weights`` are passed, ``contiguity`` is
@@ -145,10 +145,27 @@ def sw_high(k, gdf=None, weights=None, ids=None, contiguity="queen", silent=True
     else:
         raise AttributeError("GeoDataFrame or spatial weights must be given.")
 
-    joined = first_order
-    for i in list(range(2, k + 1)):
-        i_order = libpysal.weights.higher_order(
-            first_order, k=i, silence_warnings=silent
-        )
-        joined = libpysal.weights.w_union(joined, i_order, silence_warnings=silent)
-    return joined
+    # joined = first_order
+    # for i in list(range(2, k + 1)):
+    #     i_order = libpysal.weights.higher_order(
+    #         first_order, k=i, silence_warnings=silent
+    #     )
+    #     joined = libpysal.weights.w_union(joined, i_order, silence_warnings=silent)
+    # return joined
+    # return libpysal.weights.higher_order_sp(first_order, k=k, shortest_path=False)
+
+    id_order = first_order.id_order
+    w = first_order.sparse
+    if k > 1:
+        rk, ck = sum(map(lambda x: w ** x, range(2, k + 1))).nonzero()
+        sk = set(zip(rk, ck))
+        sk = set([(i, j) for i, j in sk if i != j])
+        d = dict([(i, []) for i in id_order])
+        for pair in sk:
+            k, v = pair
+            k = id_order[k]
+            v = id_order[v]
+            d[k].append(v)
+        return libpysal.weights.W(neighbors=d)
+    else:
+        return first_order
